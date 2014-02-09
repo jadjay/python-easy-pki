@@ -3,13 +3,13 @@ python-easy-pki
 
 Outil et bibliothèque permettant de générer une PKI en partant d'un simple fichier de configuration
 ```
-$ python pkitls.py -h
-usage: pkitls.py [-h] [-c CONFIG]
+$ python easy-pki.py -h
+usage: easy-pki.py [-h] [-c CONFIG]
 
 optional arguments:
   -h, --help            show this help message and exit
   -c CONFIG, --config CONFIG
-                        Définit le fichier de configuration à utiliser
+                        Définit le fichier de configuration à utiliser:w
 ```
 
 Exemple de fichier de configuration
