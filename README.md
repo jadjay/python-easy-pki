@@ -9,7 +9,7 @@ usage: easy-pki.py [-h] [-c CONFIG]
 optional arguments:
   -h, --help            show this help message and exit
   -c CONFIG, --config CONFIG
-                        Définit le fichier de configuration à utiliser:w
+                        Définit le fichier de configuration à utiliser
 ```
 
 Exemple de fichier de configuration
