@@ -44,7 +44,7 @@ class certificates(list):
 		# Je viens d'en faire les attributs de l'objet !!
 
 		self.privKeyFile = "%s/%s/%s" % (self.directory,section,	# Configuration des noms des fichiers
-				self.cI(section,"privKeyFile"))
+				self.privKeyFile)
 		self.tempFile = "%s/%s/%s" % (self.directory,section,
 				self.tempFile)
 		self.CSRFile = "%s/%s/%s" % (self.directory,section,
@@ -156,9 +156,9 @@ ipsec_ike_key
 	def createKey(self):
 		""" Fonction de création de la clé privée
 		En fonction des paramètres bits et sec-param ont indique la taille de la clé """
-		if (self.secparam):
+		if (self.sec-param):
 			command_line="certtool -p --sec-param %s --outfile %s" % (self.secparam,self.privKeyFile)
-		elif (self.bits and not self.secparam):
+		elif (self.bits and not self.sec-param):
 			command_line="certtool -p --bits %s --outfile %s" % (self.bits,self.privKeyFile)
 		print "\n\n %s" % command_line
 		subprocess.call(shlex.split(command_line))
