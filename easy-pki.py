@@ -51,20 +51,6 @@ class certificates(list):
 				self.CSRFile)
 		self.CertFile = "%s/%s/%s" % (self.directory,section,
 				self.CertFile)
-#		self.bits = self.config.get(section,"bits")			# Configuration de la taille de la clé
-#		self.secparam = self.config.get(section,"sec-param")
-#		self.common_name = self.config.get(section,"common_name")	# Nom commun
-#		self.unit = self.config.get(section,"unit")			# Service
-#		self.organization = self.config.get(section,"organization")	#
-#		self.email = self.config.get(section,"email")
-#		self.locality = self.config.get(section,"locality")
-#		self.state = self.config.get(section,"state")			# Région
-#		self.country = self.config.get(section,"country")
-#		self.expiration_days = self.config.getint(section,"expiration_days")	# doit être un entier
-#		self.password = self.config.get(section,"password")
-#		self.domains = self.config.get(section,"domain").split(",")	# gestion des alternativesDomainesNames
-#		self.ips = self.config.get(section,"ip").split(",")		# idem pour les IPs
-#		self.certtypes = self.config.get(section,"certtype").split(",") # récupération des types de certificats (ca,server,client...)
 		if self.domain:
 			self.domains = self.domain.split(",")	# gestion des alternativesDomainesNames
 		if self.ip:
@@ -96,28 +82,6 @@ country = %s
 # The common name of the certificate owner.
 cn = %s
 """ % (self.organization,self.unit,self.locality,self.state,self.country,self.common_name)
-		
-
-		## VISIBLEMENT certtool ne maîtrise pas cette option dn donc on laisse tomber
-		#			self.template += """
-		#	# An alternative way to set the certificate's distinguished name directly
-		#	# is with the "dn" option. The attribute names allowed are:
-		#	# C (country), street, O (organization), OU (unit), title, CN (common name),
-		#	# L (locality), ST (state), placeOfBirth, gender, countryOfCitizenship, 
-		#	# countryOfResidence, serialNumber, telephoneNumber, surName, initials, 
-		#	# generationQualifier, givenName, pseudonym, dnQualifier, postalCode, name, 
-		#	# businessCategory, DC, UID, jurisdictionOfIncorporationLocalityName, 
-		#	# jurisdictionOfIncorporationStateOrProvinceName,
-		#	# jurisdictionOfIncorporationCountryName, XmppAddr, and numeric OIDs.
-		#	
-		#	#dn = "cn=%s,L=%s,st=%s,C=%s,O=%s,OU=%s" """ % (self.common_name,self.locality,self.state,self.country,self.organization,self.unit)
-
-		# A faire pour plus tard : une fonction qui gère proprement le serial
-		#			self.template += """
-		#	# The serial number of the certificate
-		#	# Comment the field for a time-based serial number.
-		#	serial = %s """ % 
-
 
 		self.template += """
 # In how many days, counting from today, this certificate will expire.
@@ -127,14 +91,17 @@ expiration_days = %s """ % self.expiration_days
 		self.template += """
 # X.509 v3 extensions
 # A dnsname in case of a WWW server. """
-		for domain in self.domains:		# Ajoute une ligne dns_name pour chaque domaine
-			self.template += """
+		if self.domains:		# Ajoute une ligne dns_name pour chaque domaine
+			for domain in self.domains:
+				self.template += """
 dns_name = %s """ % domain
 
-		self.template += """
-# An IP address in case of a server. """
-		for ip in self.ips:			# Idem pour chaque ip
+
+		if self.ips:			# Idem pour chaque ip
 			self.template += """
+# An IP address in case of a server. """
+			for ip in self.ips:
+				self.template += """
 ip_address = %s """ % ip
 
 		self.template += """
