@@ -42,7 +42,8 @@ class certificates(list):
 		for k,v in self.cI.items():
 			setattr(self, k, v)
 
-		print self.cI
+		#debug
+		#print self.cI
 
 		self.privKeyFile = "%s/%s/%s" % (self.directory,section,	# Configuration des noms des fichiers
 				self.privkeyfile)
