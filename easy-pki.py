@@ -157,7 +157,7 @@ ipsec_ike_key
 		""" Fonction de création de la clé privée
 		En fonction des paramètres bits et sec-param ont indique la taille de la clé """
 		if (self.sec-param):
-			command_line="certtool -p --sec-param %s --outfile %s" % (self.secparam,self.privKeyFile)
+			command_line="certtool -p --sec-param %s --outfile %s" % (self.sec-param,self.privKeyFile)
 		elif (self.bits and not self.sec-param):
 			command_line="certtool -p --bits %s --outfile %s" % (self.bits,self.privKeyFile)
 		print "\n\n %s" % command_line
