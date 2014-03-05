@@ -5,7 +5,7 @@
 # sa documentation est trop petite, le projet ne semble pas très avancé.
 # J'utilise donc directement la commande certtool avec subprocess
 
-import certtool # vestigial ne sert plus a grand chose
+#import certtool # vestigial ne sert plus a grand chose
 import re,ConfigParser,subprocess,shlex,os,argparse,sys
 
 
@@ -37,28 +37,40 @@ class certificates(list):
 		if not os.path.exists(tempDir):
 			os.makedirs(tempDir)
 
+		self.cI = dict(self.config.items(section)	# cI ~ configItems 
+		# J'obtiens un dictionnaire !
+		for k, v in cI.items():
+			setattr(self, k, v)
+		# Je viens d'en faire les attributs de l'objet !!
+
 		self.privKeyFile = "%s/%s/%s" % (self.directory,section,	# Configuration des noms des fichiers
-				self.config.get(section,"privKeyFile"))
+				self.cI(section,"privKeyFile"))
 		self.tempFile = "%s/%s/%s" % (self.directory,section,
-				self.config.get(section,"tempFile"))
+				self.tempFile)
 		self.CSRFile = "%s/%s/%s" % (self.directory,section,
-				self.config.get(section,"CSRFile"))
+				self.CSRFile)
 		self.CertFile = "%s/%s/%s" % (self.directory,section,
-				self.config.get(section,"CertFile"))
-		self.bits = self.config.get(section,"bits")			# Configuration de la taille de la clé
-		self.secparam = self.config.get(section,"sec-param")
-		self.common_name = self.config.get(section,"common_name")	# Nom commun
-		self.unit = self.config.get(section,"unit")			# Service
-		self.organization = self.config.get(section,"organization")	#
-		self.email = self.config.get(section,"email")
-		self.locality = self.config.get(section,"locality")
-		self.state = self.config.get(section,"state")			# Région
-		self.country = self.config.get(section,"country")
-		self.expiration_days = self.config.getint(section,"expiration_days")	# doit être un entier
-		self.password = self.config.get(section,"password")
-		self.domains = self.config.get(section,"domain").split(",")	# gestion des alternativesDomainesNames
-		self.ips = self.config.get(section,"ip").split(",")		# idem pour les IPs
-		self.certtypes = self.config.get(section,"certtype").split(",") # récupération des types de certificats (ca,server,client...)
+				self.CertFile)
+#		self.bits = self.config.get(section,"bits")			# Configuration de la taille de la clé
+#		self.secparam = self.config.get(section,"sec-param")
+#		self.common_name = self.config.get(section,"common_name")	# Nom commun
+#		self.unit = self.config.get(section,"unit")			# Service
+#		self.organization = self.config.get(section,"organization")	#
+#		self.email = self.config.get(section,"email")
+#		self.locality = self.config.get(section,"locality")
+#		self.state = self.config.get(section,"state")			# Région
+#		self.country = self.config.get(section,"country")
+#		self.expiration_days = self.config.getint(section,"expiration_days")	# doit être un entier
+#		self.password = self.config.get(section,"password")
+#		self.domains = self.config.get(section,"domain").split(",")	# gestion des alternativesDomainesNames
+#		self.ips = self.config.get(section,"ip").split(",")		# idem pour les IPs
+#		self.certtypes = self.config.get(section,"certtype").split(",") # récupération des types de certificats (ca,server,client...)
+		if self.domain:
+			self.domains = self.domain.split(",")	# gestion des alternativesDomainesNames
+		if self.ip:
+			self.ips = self.ip.split(",")		# idem pour les IPs
+		if self.certtype:
+			self.certtypes = self.certtype.split(",") # récupération des types de certificats (ca,server,client...)
 
 	def getCA(self):
 		""" Cette fonction permet de récupérer les fichiers Cert et privKey d'un CA """
