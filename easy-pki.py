@@ -37,26 +37,33 @@ class certificates(list):
 		if not os.path.exists(tempDir):
 			os.makedirs(tempDir)
 
-		self.cI = dict(self.config.items(section)	# cI ~ configItems 
-		# J'obtiens un dictionnaire !
-		for k, v in cI.items():
+		self.cI = dict(self.config.items(section))	# cI ~ configItems 
+
+		for k,v in self.cI.items():
 			setattr(self, k, v)
-		# Je viens d'en faire les attributs de l'objet !!
+
+		print self.cI
 
 		self.privKeyFile = "%s/%s/%s" % (self.directory,section,	# Configuration des noms des fichiers
-				self.privKeyFile)
+				self.privkeyfile)
 		self.tempFile = "%s/%s/%s" % (self.directory,section,
-				self.tempFile)
+				self.tempfile)
 		self.CSRFile = "%s/%s/%s" % (self.directory,section,
-				self.CSRFile)
+				self.csrfile)
 		self.CertFile = "%s/%s/%s" % (self.directory,section,
-				self.CertFile)
-		if self.domain:
-			self.domains = self.domain.split(",")	# gestion des alternativesDomainesNames
-		if self.ip:
+				self.certfile)
+		try:
+			self.domains = self.domain.split(",")	# gestion des alternativesDomainesNameso
+		except:
+			pass
+		try:
 			self.ips = self.ip.split(",")		# idem pour les IPs
-		if self.certtype:
+		except:
+			pass
+		try:
 			self.certtypes = self.certtype.split(",") # récupération des types de certificats (ca,server,client...)
+		except:
+			pass
 
 	def getCA(self):
 		""" Cette fonction permet de récupérer les fichiers Cert et privKey d'un CA """
@@ -88,30 +95,39 @@ cn = %s
 # Use -1 if there is no expiration date.
 expiration_days = %s """ % self.expiration_days
 
-		self.template += """
+		try:		# Ajoute une ligne dns_name pour chaque domaine
+			if self.domains:
+				self.template += """
 # X.509 v3 extensions
 # A dnsname in case of a WWW server. """
-		if self.domains:		# Ajoute une ligne dns_name pour chaque domaine
-			for domain in self.domains:
-				self.template += """
+				for domain in self.domains:
+					self.template += """
 dns_name = %s """ % domain
+		except:
+			pass
 
 
-		if self.ips:			# Idem pour chaque ip
-			self.template += """
-# An IP address in case of a server. """
-			for ip in self.ips:
+		try:			# Idem pour chaque ip
+			if self.ips:
 				self.template += """
+# An IP address in case of a server. """
+				for ip in self.ips:
+					self.template += """
 ip_address = %s """ % ip
+		except:
+			pass
 
 		self.template += """
 # An email in case of a person
 email = %s """ % self.email
 
-		if (self.password):
-			self.template += """
+		try:			# test password
+			if self.password:
+				self.template += """
 # Password when encrypting a private key
 password = %s """ % self.password
+		except:
+			pass
 
 		# On ajoute signing et encryption par défaut, je ne suis pas sur que ce soit correct. 
 		# Je n'ai rien trouvé sur gnutls.org
@@ -155,10 +171,10 @@ ipsec_ike_key
 
 	def createKey(self):
 		""" Fonction de création de la clé privée
-		En fonction des paramètres bits et sec-param ont indique la taille de la clé """
-		if (self.sec-param):
-			command_line="certtool -p --sec-param %s --outfile %s" % (self.sec-param,self.privKeyFile)
-		elif (self.bits and not self.sec-param):
+		En fonction des paramètres bits et secparam ont indique la taille de la clé """
+		if (self.secparam):
+			command_line="certtool -p --sec-param %s --outfile %s" % (self.secparam,self.privKeyFile)
+		elif (self.bits and not self.secparam):
 			command_line="certtool -p --bits %s --outfile %s" % (self.bits,self.privKeyFile)
 		print "\n\n %s" % command_line
 		subprocess.call(shlex.split(command_line))
