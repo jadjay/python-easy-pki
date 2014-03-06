@@ -30,10 +30,12 @@ class certificates(list):
 			self.config.read(configfile)
 		except IOError:
 			print "Erreur lors de la lecture du fichier %s" % configfile
-		self.directory = re.sub(".cfg","",configfile) 	# le répertoire de tout les certificats est
-								# basé sur le nom du fichier de configuration
-		tempDir="./%s/%s" % (self.directory,section)	# ainsi le fichier de configuration devient en fait
-								# la configuration d'une PKI complète
+		# le répertoire de tout les certificats est
+		# basé sur le nom du fichier de configuration
+		# ainsi le fichier de configuration devient en fait
+		# la configuration d'une PKI complète
+		self.directory = re.sub(".cfg","",configfile)
+		tempDir="./%s/%s" % (self.directory,section)
 		if not os.path.exists(tempDir):
 			os.makedirs(tempDir)
 
@@ -42,10 +44,24 @@ class certificates(list):
 		for k,v in self.cI.items():
 			setattr(self, k, v)
 
-		#debug
-		#print self.cI
+		# gestion des alternativesDomainesNameso
+		try:
+			self.domains = self.domain.split(",")
+		except:
+			pass
+		# idem pour les IPs
+		try:
+			self.ips = self.ip.split(",")
+		except:
+			pass
+		# récupération des types de certificats (ca,server,client...)
+		try:
+			self.certtypes = self.certtype.split(",")
+		except:
+			pass
 
-		self.privKeyFile = "%s/%s/%s" % (self.directory,section,	# Configuration des noms des fichiers
+		# Configuration des noms des fichiers
+		self.privKeyFile = "%s/%s/%s" % (self.directory,section,
 				self.privkeyfile)
 		self.tempFile = "%s/%s/%s" % (self.directory,section,
 				self.tempfile)
@@ -53,25 +69,15 @@ class certificates(list):
 				self.csrfile)
 		self.CertFile = "%s/%s/%s" % (self.directory,section,
 				self.certfile)
-		try:
-			self.domains = self.domain.split(",")	# gestion des alternativesDomainesNameso
-		except:
-			pass
-		try:
-			self.ips = self.ip.split(",")		# idem pour les IPs
-		except:
-			pass
-		try:
-			self.certtypes = self.certtype.split(",") # récupération des types de certificats (ca,server,client...)
-		except:
-			pass
+		if ("ca" in self.certtypes):
+			self.caSerialFile = "%s/%s/serial" % (self.directory,section)
 
 	def getCA(self):
 		""" Cette fonction permet de récupérer les fichiers Cert et privKey d'un CA """
 		if "ca" in self.certtypes:
-			return (self.CertFile,self.privKeyFile)
+			return (self.CertFile,self.privKeyFile,self.caSerialFile)
 
-	def make_template(self):
+	def make_template(self, CAserial=None):
 		""" Fonction qui génère le template à partir des informations du fichier de configuration """
 		self.template = """
 # X.509 Certificate options
@@ -143,13 +149,33 @@ encryption_key """
 
 		# En fonction des type de certificat, on ajoute des possibilités
 		if ("ca" in self.certtypes):
+			serialfile = open(self.caSerialFile, "w+")
+			serialfile.write("001\n")
+			serialfile.close()
+
 			self.template += """
+# Serial Number
+serial = 001
 # Whether this is a CA certificate or not
 ca
 # Whether this key will be used to sign other certificates.
 cert_signing_key
 # Whether this key will be used to sign CRLs.
 crl_signing_key """
+		else:
+			oldserial = open(CAserial, "rb")
+			oldserials = oldserial.readlines()
+			oldserial.close()
+
+			newserial =int(oldserials[-1])+1
+
+			appserial = open(CAserial, "a")
+			appserial.write("%03i\n" % newserial )
+			appserial.close()
+
+			self.template += """
+# Serial Number
+serial = %03i """ % newserial
 
 		if ("server" in self.certtypes):
 			self.template += """
@@ -192,7 +218,7 @@ ipsec_ike_key
 		print "\n\n %s" % command_line
 		subprocess.call(shlex.split(command_line))
 
-	def sign(self,CAcrt,CApriv):
+	def sign(self,CAcrt,CApriv,CAserial):
 		""" Fonction de signature de la requète 
 		Nécessite le nom des fichiers cert et key du CA """
 		command_line="certtool -c --load-request %s --load-ca-certificate %s --load-ca-privkey %s --template %s --outfile %s" % (self.CSRFile,CAcrt,CApriv,self.tempFile,self.CertFile)
@@ -225,11 +251,11 @@ if __name__ == "__main__":
 			myCert.make_template()
 			myCert.createKey()
 			myCert.createSelf()
-			(CAcert,CAkey) = myCert.getCA()
+			(CAcert,CAkey,CAserial) = myCert.getCA()
 		if (not re.search("^CA",section)):	# Ensuite on traite chaque section de certificat
 			myCert = certificates(args.config,section)
-			myCert.make_template()
+			myCert.make_template(CAserial)
 			myCert.createKey()
 			myCert.createCSR()
-			myCert.sign(CAcert,CAkey)
+			myCert.sign(CAcert,CAkey,CAserial)
 	sys.exit(0)
