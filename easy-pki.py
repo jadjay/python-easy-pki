@@ -77,6 +77,12 @@ class certificates(list):
 		if "ca" in self.certtypes:
 			return (self.CertFile,self.privKeyFile,self.caSerialFile)
 
+	def exist(self):
+		if os.path.isfile(self.privKeyFile) and os.path.isfile(self.CertFile):
+			return True
+		else:
+			return False
+
 	def make_template(self, CAserial=None):
 		""" Fonction qui génère le template à partir des informations du fichier de configuration """
 		self.template = """
@@ -247,15 +253,22 @@ if __name__ == "__main__":
 	for section in myConfig.sections():
 		if (re.search("^CA",section)):		# On traite en premier la section du CA
 			print section
-			myCert = certificates(args.config,section)
-			myCert.make_template()
-			myCert.createKey()
-			myCert.createSelf()
-			(CAcert,CAkey,CAserial) = myCert.getCA()
+			myCA = certificates(args.config,section)
+			if (not myCA.exist()):
+				myCA.make_template()
+				myCA.createKey()
+				myCA.createSelf()
+			#(CAcert,CAkey,CAserial) = myCA.getCA()
 		if (not re.search("^CA",section)):	# Ensuite on traite chaque section de certificat
 			myCert = certificates(args.config,section)
-			myCert.make_template(CAserial)
-			myCert.createKey()
-			myCert.createCSR()
-			myCert.sign(CAcert,CAkey,CAserial)
+			if (not myCA.exist()):
+				myCert.make_template(CAserial)
+				myCert.createKey()
+				myCert.createCSR()
+			#else: 	# En gros : refaire un template temporaire avec les nouvelles valeurs
+				# si les deux fichiers diffèrents => mv to old / delete et refaire
+				# si les deux sont egaux => ne rien faire 
+			#	myCert.make_template(CAserial,"/tmp/template")
+			#myCert.sign(CAcert,CAkey,CAserial)
+			myCert.sign(myCA.CertFile,myCA.privKeyFile,myCA.caSerialFile)
 	sys.exit(0)
