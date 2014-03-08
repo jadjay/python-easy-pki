@@ -19,7 +19,7 @@ class certificates(list):
 	- éventuellement certificat signé par l'autorité
 	"""
 
-	def __init__(self, configfile, section):
+	def __init__(self, configfile, section, TEMP=False):
 		""" L'initialisation se fait en indiquant un fichier de configuration au format [section]/paramètre=
 		et une section définissant le certificat
 		"""
@@ -33,7 +33,10 @@ class certificates(list):
 		# basé sur le nom du fichier de configuration
 		# ainsi le fichier de configuration devient en fait
 		# la configuration d'une PKI complète
-		self.directory = re.sub(".cfg","",configfile)
+		if TEMP:
+			self.directory = "%s_%s" % ("tmp",re.sub(".cfg","",configfile))
+		else:
+			self.directory = re.sub(".cfg","",configfile)
 		self.tempDir="./%s/%s" % (self.directory,section)
 		if not os.path.exists(self.tempDir):
 			os.makedirs(self.tempDir)
@@ -62,9 +65,9 @@ class certificates(list):
 		# Configuration des noms des fichiers
 		self.privKeyFile = "%s/%s/%s" % (self.directory,section,
 				self.privkeyfile)
-		self.tempFile,self.tempTempFile = "%s/%s/%s" % 
-				(self.directory,section,self.tempfile),
-				(self.directory,section,"tempTemplate.cfg")
+		self.tempFile,self.tempTempFile = "%s/%s/%s" % (
+				self.directory,section,self.tempfile), (
+				self.directory,section,"tempTemplate.cfg")
 		self.CSRFile = "%s/%s/%s" % (self.directory,section,
 				self.csrfile)
 		self.CertFile = "%s/%s/%s" % (self.directory,section,
@@ -82,6 +85,64 @@ class certificates(list):
 			return True
 		else:
 			return False
+
+	def newtemplate(self, CAserial=None, TEMP=False):
+		self.oTemplate = ConfigParser.ConfigParser()
+		self.oTemplate.set("default","organisation",self.
+		self.oTemplate.set("default","organization",self.organization)
+		self.oTemplate.set("default","unit",self.unit)
+		self.oTemplate.set("default","locality",self.locality)
+		self.oTemplate.set("default","state",self.state)
+		self.oTemplate.set("default","country",self.country)
+		self.oTemplate.set("default","common_name",self.common_name)
+		self.oTemplate.set("default","expiration_days",self.expiration_days)
+		self.oTemplate.set("default","signing_key",None)
+		self.oTemplate.set("default","encryption_key",None)
+		self.oTemplate.set("default","email",self.email)
+		if ("server" in self.certtypes):
+			self.oTemplate.set("default","tls_www_server",None)
+		if ("client" in self.certtypes):
+			self.oTemplate.set("default","tls_www_client",None)
+		if ("ipsec" in self.certtypes):
+			self.oTemplate.set("default","ipsec_ike_key",None)
+		try:			# test password
+			self.oTemplate.set("default","password",self.password)
+		except:
+			pass
+		try:
+			for domain in self.domains:
+				self.oTemplate.set("default","dns_name",domain)
+		except:
+			pass
+		try:			# Idem pour chaque ip
+			for ip in self.ips:
+				self.oTemplate.set("default","ip_address",ip)
+		except:
+			pass
+		# En fonction des type de certificat, on ajoute des possibilités
+		if ("ca" in self.certtypes):
+			serialfile = open(self.caSerialFile, "w+")
+			serialfile.write("001\n")
+			serialfile.close()
+			self.oTemplate.set("default","serial","001")
+			self.oTemplate.set("default","ca",None)
+			self.oTemplate.set("default","cert_signing_key",None)
+			self.oTemplate.set("default","crl_signing_key",None)
+		else:
+			oldserial = open(CAserial, "rb")
+			oldserials = oldserial.readlines()
+			oldserial.close()
+			newserial =int(oldserials[-1])+1
+			appserial = open(CAserial, "a")
+			appserial.write("%03i\n" % newserial )
+			appserial.close()
+			self.oTemplate.set("default","serial","%03i" % newserial )
+
+		# Enfin on écrit le fichier template
+		if (TEMP==True):
+			self.oTemplate.write(open(self.tempTempFile,"w"))
+		else:
+			self.oTemplate.write(open(self.tempFile,"w"))
 
 	def make_template(self, CAserial=None, TEMP=False):
 		""" Fonction qui génère le template à partir des informations du fichier de configuration """
@@ -247,10 +308,30 @@ if __name__ == "__main__":
 				myCA.createKey()
 				myCA.createSelf()
 		else:					# Ensuite on traite chaque section de certificat
+			print section
 			myCert = certificates(args.config,section)
-			myCert.make_template(myCA.caSerialFile)
-			if not myCert.exist():
+			if myCert.exist():
+				print "%s exist!" % section
+				myCertTemp = certificates(args.config,section,TEMP=True)
+				count,diff=0,[]
+				for (tempK,tempV),(K,V) in zip(myCertTemp.cI.items(),myCert.cI.items()):
+					if (tempV != V):
+						print "%s: %s\t\t%s: %s" % (tempK,tempV,K,V)
+						count+=1
+						diff.append("tempK")
+				if count > 0:
+					print "Le certificat %s a été modifié" % section
+					print "Voici la liste des modifications :"
+					for d in diff:
+						print " - %s" % d
+					reponse = input("Voulez vous changer le certificat %s ? [O/n] " % section)
+					if reponse == None or reponse == "0" or reponse == "o":
+						myCert.make_template(myCA.caSerialFile)
+						myCert.createCSR()
+					myCert.sign(myCA.CertFile,myCA.privKeyFile,myCA.caSerialFile)
+			else:
+				myCert.make_template(myCA.caSerialFile)
 				myCert.createKey()
-			myCert.createCSR()
-			myCert.sign(myCA.CertFile,myCA.privKeyFile,myCA.caSerialFile)
+				myCert.createCSR()
+				myCert.sign(myCA.CertFile,myCA.privKeyFile,myCA.caSerialFile)
 	sys.exit(0)
