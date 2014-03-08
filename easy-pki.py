@@ -6,8 +6,7 @@
 # J'utilise donc directement la commande certtool avec subprocess
 
 #import certtool # vestigial ne sert plus a grand chose
-import re,ConfigParser,subprocess,shlex,os,argparse,sys
-
+import re,ConfigParser,subprocess,shlex,os,argparse,sys,filecmp
 
 class certificates(list):
 	"""
@@ -35,9 +34,9 @@ class certificates(list):
 		# ainsi le fichier de configuration devient en fait
 		# la configuration d'une PKI complète
 		self.directory = re.sub(".cfg","",configfile)
-		tempDir="./%s/%s" % (self.directory,section)
-		if not os.path.exists(tempDir):
-			os.makedirs(tempDir)
+		self.tempDir="./%s/%s" % (self.directory,section)
+		if not os.path.exists(self.tempDir):
+			os.makedirs(self.tempDir)
 
 		self.cI = dict(self.config.items(section))	# cI ~ configItems 
 
@@ -63,8 +62,9 @@ class certificates(list):
 		# Configuration des noms des fichiers
 		self.privKeyFile = "%s/%s/%s" % (self.directory,section,
 				self.privkeyfile)
-		self.tempFile = "%s/%s/%s" % (self.directory,section,
-				self.tempfile)
+		self.tempFile,self.tempTempFile = "%s/%s/%s" % 
+				(self.directory,section,self.tempfile),
+				(self.directory,section,"tempTemplate.cfg")
 		self.CSRFile = "%s/%s/%s" % (self.directory,section,
 				self.csrfile)
 		self.CertFile = "%s/%s/%s" % (self.directory,section,
@@ -83,11 +83,10 @@ class certificates(list):
 		else:
 			return False
 
-	def make_template(self, CAserial=None):
+	def make_template(self, CAserial=None, TEMP=False):
 		""" Fonction qui génère le template à partir des informations du fichier de configuration """
 		self.template = """
 # X.509 Certificate options
-#
 # DN options
 # The organization of the subject.
 organization = %s
@@ -119,7 +118,6 @@ dns_name = %s """ % domain
 		except:
 			pass
 
-
 		try:			# Idem pour chaque ip
 			if self.ips:
 				self.template += """
@@ -129,11 +127,9 @@ dns_name = %s """ % domain
 ip_address = %s """ % ip
 		except:
 			pass
-
 		self.template += """
 # An email in case of a person
 email = %s """ % self.email
-
 		try:			# test password
 			if self.password:
 				self.template += """
@@ -141,7 +137,6 @@ email = %s """ % self.email
 password = %s """ % self.password
 		except:
 			pass
-
 		# On ajoute signing et encryption par défaut, je ne suis pas sur que ce soit correct. 
 		# Je n'ai rien trouvé sur gnutls.org
 		self.template += """
@@ -152,13 +147,11 @@ signing_key
 # in TLS RSA ciphersuites). Note that it is preferred to use different
 # keys for encryption and signing.
 encryption_key """
-
 		# En fonction des type de certificat, on ajoute des possibilités
 		if ("ca" in self.certtypes):
 			serialfile = open(self.caSerialFile, "w+")
 			serialfile.write("001\n")
 			serialfile.close()
-
 			self.template += """
 # Serial Number
 serial = 001
@@ -172,35 +165,30 @@ crl_signing_key """
 			oldserial = open(CAserial, "rb")
 			oldserials = oldserial.readlines()
 			oldserial.close()
-
 			newserial =int(oldserials[-1])+1
-
 			appserial = open(CAserial, "a")
 			appserial.write("%03i\n" % newserial )
 			appserial.close()
-
 			self.template += """
 # Serial Number
 serial = %03i """ % newserial
-
 		if ("server" in self.certtypes):
 			self.template += """
 # Whether this certificate will be used for a TLS server
-tls_www_server
-"""
-
+tls_www_server """
 		if ("client" in self.certtypes):
 			self.template += """
 # Whether this certificate will be used for a TLS client
-tls_www_client
-"""
+tls_www_client """
 		if ("ipsec" in self.certtypes):
 			self.template += """
 # Whether this key will be used for IPsec IKE operations.
-ipsec_ike_key
-"""
+ipsec_ike_key """
 		# Enfin on écrit le fichier template
-		open(self.tempFile,"w").write(self.template)
+		if (TEMP==True):
+			open(self.tempTempFile,"w").write(self.template)
+		else:
+			open(self.tempFile,"w").write(self.template)
 
 	def createKey(self):
 		""" Fonction de création de la clé privée
@@ -251,24 +239,18 @@ if __name__ == "__main__":
 	myConfig.read(args.config)		# On lit le fichier de configuration
 
 	for section in myConfig.sections():
-		if (re.search("^CA",section)):		# On traite en premier la section du CA
+		if re.search("^CA",section):		# On traite en premier la section du CA
 			print section
 			myCA = certificates(args.config,section)
-			if (not myCA.exist()):
+			if not myCA.exist():
 				myCA.make_template()
 				myCA.createKey()
 				myCA.createSelf()
-			#(CAcert,CAkey,CAserial) = myCA.getCA()
-		if (not re.search("^CA",section)):	# Ensuite on traite chaque section de certificat
+		else:					# Ensuite on traite chaque section de certificat
 			myCert = certificates(args.config,section)
-			if (not myCA.exist()):
-				myCert.make_template(CAserial)
+			myCert.make_template(myCA.caSerialFile)
+			if not myCert.exist():
 				myCert.createKey()
-				myCert.createCSR()
-			#else: 	# En gros : refaire un template temporaire avec les nouvelles valeurs
-				# si les deux fichiers diffèrents => mv to old / delete et refaire
-				# si les deux sont egaux => ne rien faire 
-			#	myCert.make_template(CAserial,"/tmp/template")
-			#myCert.sign(CAcert,CAkey,CAserial)
+			myCert.createCSR()
 			myCert.sign(myCA.CertFile,myCA.privKeyFile,myCA.caSerialFile)
 	sys.exit(0)
