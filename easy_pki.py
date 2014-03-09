@@ -7,6 +7,14 @@
 
 #import certtool # vestigial ne sert plus a grand chose
 import re,ConfigParser,subprocess,shlex,os,argparse,sys,filecmp
+from collections import OrderedDict
+
+class MultiOrderedDict(OrderedDict):
+	def __setitem__(self, key, value):
+		if isinstance(value, list) and key in self:
+			self[key].extend(value)
+		else:
+			super(OrderedDict, self).__setitem__(key, value)
 
 class certificates(list):
 	"""
@@ -100,7 +108,7 @@ class certificates(list):
 			return False
 
 	def newtemplate(self, CAserial=None, TEMP=False):
-		self.oTemplate = ConfigParser.ConfigParser()
+		self.oTemplate = ConfigParser.ConfigParser(dict_type=MultiOrderedDict)
 		self.oTemplate.add_section(self.directory)
 		self.oTemplate.set(self.directory,"organization",self.organization)
 		self.oTemplate.set(self.directory,"unit",self.unit)
@@ -114,6 +122,7 @@ class certificates(list):
 		if ("server" in self.certtypes):
 			self.oTemplate.set(self.directory,"tls_www_server",None)
 			try:
+				print self.domains
 				for domain in self.domains:
 					self.oTemplate.set(self.directory,"dns_name",domain)
 			except:
@@ -191,6 +200,7 @@ expiration_days = %s """ % self.expiration_days
 
 		try:		# Ajoute une ligne dns_name pour chaque domaine
 			if self.domains:
+				print self.domains
 				self.template += """
 # X.509 v3 extensions
 # A dnsname in case of a WWW server. """
@@ -337,9 +347,7 @@ if __name__ == "__main__":
 				count,diff=0,[]
 				for (tempK,tempV) in myCert.oldCI.items():
 					try:
-						K = myCert.cI.get(section,tempK)
-						V = myCert.cI.get(section,tempV)
-						print "%s %s %s %s" % (tempK,tempV,K,V)
+						V = myCert.cI.get(tempK)
 						if (tempV != V ):
 							#print "%s: %s\t\t%s: %s" % (tempK,tempV,tempK,V)
 							count+=1
